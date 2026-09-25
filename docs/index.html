@@ -496,7 +496,7 @@
     if (D.dias_con_error && D.dias_con_error.length) {
       const li = document.getElementById('errores-api');
       li.hidden = false;
-      li.textContent = `La API del BOE devuelve un error para ${D.dias_con_error.length === 1 ? 'un día' : D.dias_con_error.length + ' días'} (${D.dias_con_error.join(', ')}), que por eso no se cuenta${D.dias_con_error.length === 1 ? '' : 'n'}.`;
+      li.textContent = `La API del BOE devuelve un error para ${D.dias_con_error.length === 1 ? 'un día' : D.dias_con_error.length + ' días'} (${D.dias_con_error.map((f) => { const [y, m, d] = f.split('-').map(Number); return `${d}/${m}/${y}`; }).join(', ')}), que por eso no se cuenta${D.dias_con_error.length === 1 ? '' : 'n'}.`;
     }
     document.getElementById('updated').textContent = `Datos del BOE hasta el ${fecha(D.actualizado)}. Se actualiza cada día.`;
     document.getElementById('hero-fig').textContent = fmt(a.paginas_s1);
