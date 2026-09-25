@@ -1,0 +1,592 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Observatorio de la hiperlegislación: cuánto legisla España, con datos del BOE</title>
+<meta name="description" content="Cuántas normas se publican en España cada año, cuántas páginas ocupan y cuántas hay que corregir. Datos abiertos del BOE desde 1979, actualizados cada día.">
+<meta name="author" content="Sergio López Rapado">
+<link rel="canonical" href="https://slopezrap.github.io/hiperlegislacion/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Observatorio de la hiperlegislación">
+<meta property="og:description" content="Cuánto legisla España, medido con los datos abiertos del BOE desde 1979.">
+<meta property="og:url" content="https://slopezrap.github.io/hiperlegislacion/">
+<meta name="twitter:card" content="summary">
+<style>
+  :root {
+    color-scheme: light;
+    --page: #f9f9f7;
+    --surface: #fcfcfb;
+    --ink: #0b0b0b;
+    --ink-2: #52514e;
+    --muted: #898781;
+    --grid: #e1e0d9;
+    --axis: #c3c2b7;
+    --ring: rgba(11,11,11,0.10);
+    --accent: #c63a35;
+    --s1: #2a78d6;
+    --s2: #eb6834;
+    --s3: #1baf7a;
+    --measure: 40rem;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --page: #0d0d0d; --surface: #1a1a19; --ink: #ffffff; --ink-2: #c3c2b7; --muted: #898781;
+      --grid: #2c2c2a; --axis: #383835; --ring: rgba(255,255,255,0.10); --accent: #e66767;
+      --s1: #3987e5; --s2: #d95926; --s3: #199e70;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --ink: #ffffff; --ink-2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --axis: #383835; --ring: rgba(255,255,255,0.10); --accent: #e66767;
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--ink); line-height: 1.55; font-size: 1.0625rem; }
+  a { color: inherit; text-decoration-color: var(--accent); text-underline-offset: 3px; }
+  a:hover { color: var(--accent); }
+  .wrap { max-width: 64rem; margin: 0 auto; padding: 0 16px; }
+  header.top { padding-top: 56px; padding-bottom: 28px; }
+  .kicker { font-size: .8125rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin: 0 0 12px; }
+  h1 { font-size: clamp(2rem, 5vw, 3.25rem); line-height: 1.08; margin: 0 0 16px; letter-spacing: -.02em; max-width: 18ch; }
+  .lede { font-size: 1.1875rem; color: var(--ink-2); max-width: var(--measure); margin: 0; }
+  .updated { font-size: .875rem; color: var(--muted); margin-top: 16px; }
+  section { padding: 28px 0; }
+  h2 { font-size: 1.375rem; margin: 0 0 4px; letter-spacing: -.01em; }
+  .sub { color: var(--ink-2); margin: 0 0 16px; max-width: var(--measure); font-size: .9688rem; }
+  .card { background: var(--surface); border-radius: 12px; box-shadow: 0 0 0 1px var(--ring); padding: 24px; }
+  .hero { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 2fr); gap: 24px; align-items: end; }
+  .hero-fig { font-size: clamp(3rem, 9vw, 5rem); font-weight: 650; line-height: 1; letter-spacing: -.03em; }
+  .hero-label { color: var(--ink-2); margin-top: 8px; font-size: .9688rem; }
+  .delta { display: inline-block; margin-top: 12px; font-size: .9375rem; color: var(--ink-2); }
+  .delta strong { color: var(--ink); }
+  .kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+  .kpi { border-left: 1px solid var(--grid); padding-left: 16px; }
+  .kpi .label { font-size: .875rem; color: var(--ink-2); }
+  .kpi .value { font-size: 1.75rem; font-weight: 600; margin-top: 4px; }
+  .kpi .cmp { font-size: .8125rem; color: var(--muted); margin-top: 2px; }
+  .chart { position: relative; width: 100%; }
+  .chart svg { display: block; width: 100%; overflow: visible; }
+  .chart svg:focus-visible { outline: 2px solid var(--s1); outline-offset: 4px; border-radius: 4px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 0 0 12px; padding: 0; list-style: none; font-size: .875rem; color: var(--ink-2); }
+  .legend li { display: inline-flex; align-items: center; gap: 8px; }
+  .legend .sw { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+  .tick { font-size: 11px; fill: var(--muted); font-variant-numeric: tabular-nums; }
+  .dlabel { font-size: 12px; fill: var(--ink-2); }
+  .dvalue { font-size: 12px; fill: var(--ink); font-weight: 600; }
+  .tip { position: absolute; pointer-events: none; background: var(--surface); color: var(--ink); box-shadow: 0 0 0 1px var(--ring), 0 6px 20px rgba(0,0,0,.12);
+         border-radius: 8px; padding: 10px 12px; font-size: .8125rem; min-width: 150px; opacity: 0; transition: opacity .08s; z-index: 5; }
+  .tip.on { opacity: 1; }
+  .tip .t { font-weight: 600; margin-bottom: 6px; }
+  .tip .row { display: flex; align-items: center; gap: 8px; justify-content: space-between; }
+  .tip .row .k { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-2); }
+  .tip .row .v { font-weight: 600; font-variant-numeric: tabular-nums; }
+  .tip .key { width: 12px; height: 2px; border-radius: 1px; display: inline-block; }
+  .tip .note { color: var(--muted); margin-top: 6px; font-size: .75rem; }
+  details { margin-top: 16px; }
+  summary { cursor: pointer; color: var(--ink-2); font-size: .9375rem; }
+  .tablewrap { overflow-x: auto; margin-top: 12px; }
+  table { border-collapse: collapse; font-size: .8125rem; width: 100%; }
+  th, td { text-align: right; padding: 6px 10px; border-bottom: 1px solid var(--grid); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  th:first-child, td:first-child { text-align: left; }
+  th { color: var(--ink-2); font-weight: 600; }
+  .grid2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; }
+  .prose { max-width: var(--measure); }
+  .prose li { margin-bottom: 8px; }
+  .book { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 24px; align-items: center; }
+  .book img { width: 120px; height: auto; border-radius: 3px; box-shadow: 0 4px 16px rgba(0,0,0,.18); }
+  .btn { display: inline-block; margin-top: 12px; background: var(--ink); color: var(--page); padding: 10px 16px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: .9375rem; }
+  .btn:hover { color: var(--page); opacity: .88; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  footer { padding-top: 32px; padding-bottom: 56px; color: var(--muted); font-size: .8125rem; }
+  footer p { margin: 4px 0; }
+  @media (max-width: 720px) {
+    header.top { padding-top: 32px; }
+
+    .hero, .grid2 { grid-template-columns: minmax(0, 1fr); }
+    .kpis { grid-template-columns: minmax(0, 1fr); }
+    .kpi { border-left: 0; border-top: 1px solid var(--grid); padding: 12px 0 0; }
+    .card { padding: 16px; }
+    .book { grid-template-columns: 80px minmax(0, 1fr); gap: 16px; }
+    .book img { width: 80px; }
+  }
+</style>
+</head>
+<body>
+<header class="top wrap">
+  <p class="kicker">Observatorio de la hiperlegislación</p>
+  <h1>¿Cuánto legisla España?</h1>
+  <p class="lede">Cada día el Boletín Oficial del Estado publica nuevas normas. Este observatorio las cuenta con los datos abiertos del propio BOE, desde 1979, y se actualiza solo cada mañana.</p>
+  <p class="updated" id="updated">Cargando datos…</p>
+</header>
+
+<main class="wrap">
+  <section aria-labelledby="h-ytd">
+    <h2 id="h-ytd" class="sr">En lo que va de año</h2>
+    <div class="card hero">
+      <div>
+        <div class="hero-fig" id="hero-fig">—</div>
+        <div class="hero-label" id="hero-label"></div>
+        <div class="delta" id="hero-delta"></div>
+      </div>
+      <div class="kpis" id="kpis"></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-pag">
+    <h2 id="h-pag">Páginas de disposiciones generales por año</h2>
+    <p class="sub">Sección I del BOE: leyes, reales decretos, órdenes y demás normas de alcance general. Desde 2009, cuando el BOE pasó a ser solo electrónico y cambió su formato; las páginas de antes no son comparables. La última columna es el año en curso.</p>
+    <div class="card"><div class="chart" id="c-paginas"></div></div>
+  </section>
+
+  <section aria-labelledby="h-ley">
+    <h2 id="h-ley">Normas con rango de ley por año</h2>
+    <p class="sub">Leyes aprobadas por las Cortes y los parlamentos autonómicos, y decretos-ley aprobados por los gobiernos, que tienen la misma fuerza que una ley.</p>
+    <div class="card">
+      <ul class="legend" id="l-ley"></ul>
+      <div class="chart" id="c-ley"></div>
+    </div>
+  </section>
+
+  <div class="grid2">
+    <section aria-labelledby="h-corr">
+      <h2 id="h-corr">Correcciones de errores</h2>
+      <p class="sub">Por cada 100 disposiciones generales publicadas, cuántas corrigen errores de otras ya publicadas.</p>
+      <div class="card"><div class="chart" id="c-corr"></div></div>
+    </section>
+    <section aria-labelledby="h-ccaa">
+      <h2 id="h-ccaa">Leyes y decretos-ley autonómicos</h2>
+      <p class="sub" id="s-ccaa">Por comunidad autónoma, en los últimos diez años completos.</p>
+      <div class="card"><div class="chart" id="c-ccaa"></div></div>
+    </section>
+  </div>
+
+  <section aria-labelledby="h-datos">
+    <h2 id="h-datos">Los datos</h2>
+    <p class="sub">Todo lo que se ve aquí se puede descargar y reutilizar citando la fuente.</p>
+    <div class="card">
+      <p style="margin:0">
+        <a href="data/observatorio_anual.csv" download>Serie anual (CSV)</a> ·
+        <a href="data/observatorio.json">Datos de la web (JSON)</a> ·
+        <a href="https://github.com/slopezrap/hiperlegislacion/tree/main/data/s1">Cada disposición general desde 1979 (CSV por año)</a> ·
+        <a href="https://github.com/slopezrap/hiperlegislacion">Código</a>
+      </p>
+      <details>
+        <summary>Ver la tabla año a año</summary>
+        <div class="tablewrap"><table id="tabla"></table></div>
+        <p class="sub" style="margin-top:8px;font-size:.8125rem">Las páginas anteriores a 2009 no son comparables con las posteriores por el cambio de formato del BOE.</p>
+      </details>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-metodo" class="prose">
+    <h2 id="h-metodo">Cómo se calcula</h2>
+    <ul>
+      <li><strong>Fuente:</strong> el sumario diario del BOE, a través de su <a href="https://www.boe.es/datosabiertos/">API de datos abiertos</a>. Se lee cada número publicado, incluidos los extraordinarios.</li>
+      <li><strong>Disposiciones generales</strong> son las publicadas en la Sección I del BOE. Las <strong>páginas</strong> se calculan con la página inicial y final de cada disposición, sin contar dos veces las páginas compartidas. Desde el 1 de enero de 2009 el BOE solo se publica en formato electrónico, a una columna y con cada disposición empezando en página nueva, así que las páginas de antes de 2009 no se comparan con las de después.</li>
+      <li><strong>Normas con rango de ley:</strong> leyes orgánicas, leyes, reales decretos legislativos y reales decretos-ley del Estado, y leyes, decretos legislativos y decretos-ley de las comunidades autónomas publicados en el BOE. El tipo se deduce del comienzo del título de cada disposición. Entre 1981 y 1986 el BOE publicaba las leyes autonómicas en una sección propia («Comunidades Autónomas»), y también se cuentan.</li>
+      <li><strong>Comprobación:</strong> las leyes, leyes orgánicas y reales decretos-ley se numeran por año. De 1980 en adelante, el número más alto de cada año coincide con los contados salvo en tres leyes (13/1981, 8/1985 y 48 y 49/1999, publicadas en días en que la API falla). En 1979 faltan seis leyes y un real decreto-ley.</li>
+      <li><strong>Normas generales nuevas:</strong> disposiciones generales sin contar las correcciones de errores ni las resoluciones de tribunales.</li>
+      <li><strong>Correcciones de errores:</strong> disposiciones cuyo título empieza por «Corrección de errores» o «Corrección de erratas». No se cuentan las resoluciones de tribunales publicadas en la Sección I.</li>
+      <li><strong>Qué no incluye:</strong> los boletines autonómicos, provinciales y municipales, ni el Diario Oficial de la UE. Solo mide lo que publica el BOE, así que el volumen real de normas es mayor.</li>
+      <li>El año en curso está incompleto. Para compararlo se usa el mismo periodo del año anterior.</li>
+      <li id="errores-api" hidden></li>
+    </ul>
+  </section>
+
+  <section aria-labelledby="h-libro">
+    <div class="card book">
+      <img src="portada-libro.jpg" alt="Portada del libro Pragmatecmerismo" width="120" height="180" loading="lazy">
+      <div>
+        <h2 id="h-libro">Por qué existe este observatorio</h2>
+        <p class="sub" style="margin-bottom:0">Nace de una idea de <em>Pragmatecmerismo</em>, el ensayo de Sergio López Rapado: toda medida pública debería justificarse con datos, evaluarse por sus resultados y corregirse cuando la evidencia lo exija. Medir cuánto se legisla es el primer paso para legislar mejor.</p>
+        <a class="btn" href="https://slopezrap.github.io/pragmatecmerismo/">Descarga el libro gratis</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="wrap">
+  <p>Fuente: Agencia Estatal Boletín Oficial del Estado, <a href="https://www.boe.es/datosabiertos/">datos abiertos</a>. Elaboración propia.</p>
+  <p>Proyecto independiente de <a href="https://slopezrap.github.io/pragmatecmerismo/">Sergio López Rapado</a>. Datos derivados bajo licencia <a href="https://creativecommons.org/licenses/by/4.0/deed.es">CC BY 4.0</a>.</p>
+</footer>
+
+<script>
+(() => {
+  const NS = 'http://www.w3.org/2000/svg';
+  const fmt = (n) => Math.round(n).toLocaleString('es-ES');
+  const fmt1 = (n) => n.toLocaleString('es-ES', { maximumFractionDigits: 1, minimumFractionDigits: 1 });
+  const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  const fecha = (iso) => { const [y, m, d] = iso.split('-').map(Number); return `${d} de ${MESES[m - 1]} de ${y}`; };
+  const fechaCorta = (iso) => { const [, m, d] = iso.split('-').map(Number); return `${d} de ${MESES[m - 1]}`; };
+
+  function el(tag, attrs = {}, parent) {
+    const e = document.createElementNS(NS, tag);
+    for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+  function html(tag, cls, text, parent) {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+  function niceTicks(max, count = 4) {
+    if (max <= 0) return [0, 1];
+    const raw = max / count;
+    const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+    const step = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((s) => s >= raw);
+    const ticks = [];
+    for (let v = 0; v <= max + step * 0.001; v += step) ticks.push(v);
+    if (ticks[ticks.length - 1] < max) ticks.push(ticks[ticks.length - 1] + step);
+    return ticks;
+  }
+  // Barra con esquinas superiores redondeadas (r) y base recta
+  function topRounded(x, y, w, h, r) {
+    r = Math.max(0, Math.min(r, w / 2, h));
+    return `M${x},${y + h}V${y + r}Q${x},${y} ${x + r},${y}H${x + w - r}Q${x + w},${y} ${x + w},${y + r}V${y + h}Z`;
+  }
+  function rightRounded(x, y, w, h, r) {
+    r = Math.max(0, Math.min(r, h / 2, w));
+    return `M${x},${y}H${x + w - r}Q${x + w},${y} ${x + w},${y + r}V${y + h - r}Q${x + w},${y + h} ${x + w - r},${y + h}H${x}Z`;
+  }
+
+  // Tooltip compartido por gráfico
+  function tooltip(host) {
+    const tip = html('div', 'tip', null, host);
+    tip.setAttribute('role', 'status');
+    return {
+      show(title, rows, note, x, y) {
+        tip.replaceChildren();
+        html('div', 't', title, tip);
+        for (const r of rows) {
+          const row = html('div', 'row', null, tip);
+          const k = html('span', 'k', null, row);
+          if (r.color) { const key = html('span', 'key', null, k); key.style.background = r.color; }
+          k.appendChild(document.createTextNode(r.label));
+          html('span', 'v', r.value, row);
+        }
+        if (note) html('div', 'note', note, tip);
+        const hw = host.clientWidth, tw = tip.offsetWidth;
+        tip.style.left = Math.max(0, Math.min(hw - tw, x - tw / 2)) + 'px';
+        tip.style.top = Math.max(0, y - tip.offsetHeight - 12) + 'px';
+        tip.classList.add('on');
+      },
+      hide() { tip.classList.remove('on'); },
+    };
+  }
+
+  // Navegación con teclado: flechas para recorrer, Escape para cerrar
+  function keyboard(svg, n, onIndex, onLeave) {
+    let idx = -1;
+    svg.setAttribute('tabindex', '0');
+    svg.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') idx = Math.min(n - 1, idx + 1);
+      else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') idx = Math.max(0, idx < 0 ? n - 1 : idx - 1);
+      else if (e.key === 'Home') idx = 0;
+      else if (e.key === 'End') idx = n - 1;
+      else if (e.key === 'Escape') { idx = -1; onLeave(); return; }
+      else return;
+      e.preventDefault();
+      onIndex(idx);
+    });
+    svg.addEventListener('focus', () => { if (idx < 0) { idx = n - 1; onIndex(idx); } });
+    svg.addEventListener('blur', () => { idx = -1; onLeave(); });
+  }
+
+  // Columnas (una serie o apiladas)
+  function columns(host, { labels, series, partialLast, partialNote, ariaLabel, labelExtremes, tipTotal, tipExtra }) {
+    host.replaceChildren();
+    const W = host.clientWidth, narrow = W < 560;
+    const stacked = series.length > 1;
+    const direct = stacked && !narrow;
+    const m = { t: 22, r: direct ? 128 : 8, b: 26, l: 44 };
+    const H = narrow ? 240 : 300;
+    const pw = W - m.l - m.r, ph = H - m.t - m.b;
+    const n = labels.length;
+    const totals = labels.map((_, i) => series.reduce((s, se) => s + se.values[i], 0));
+    const ticks = niceTicks(Math.max(...totals));
+    const ymax = ticks[ticks.length - 1];
+    const band = pw / n, bw = Math.max(2, Math.min(24, band - 2));
+    const x = (i) => m.l + i * band + (band - bw) / 2;
+    const y = (v) => m.t + ph - (v / ymax) * ph;
+    const svg = el('svg', { viewBox: `0 0 ${W} ${H}`, height: H, role: 'img', 'aria-label': ariaLabel }, host);
+    for (const t of ticks) {
+      el('line', { x1: m.l, x2: m.l + pw, y1: y(t), y2: y(t), style: `stroke:${t === 0 ? 'var(--axis)' : 'var(--grid)'}`, 'stroke-width': 1, 'shape-rendering': 'crispEdges' }, svg);
+      el('text', { x: m.l - 8, y: y(t) + 4, 'text-anchor': 'end', class: 'tick' }, svg).textContent = fmt(t);
+    }
+    const step = Math.max(1, Math.ceil((n * (narrow ? 44 : 36)) / pw / 5) * 5);
+    labels.forEach((lab, i) => {
+      if (Number(lab) % step === 0 || i === n - 1) {
+        if (i === n - 1 || (n - 1 - i) * band > 28) {
+          el('text', { x: m.l + i * band + band / 2, y: H - 6, 'text-anchor': 'middle', class: 'tick' }, svg).textContent = lab;
+        }
+      }
+    });
+    const cols = [];
+    labels.forEach((lab, i) => {
+      const g = el('g', { opacity: partialLast && i === n - 1 ? 0.45 : 1 }, svg);
+      let acc = 0;
+      const nonzero = series.map((s, k) => (s.values[i] > 0 ? k : -1)).filter((k) => k >= 0);
+      const topK = nonzero[nonzero.length - 1];
+      series.forEach((s, k) => {
+        const v = s.values[i];
+        if (v <= 0) return;
+        const y0 = y(acc), y1 = y(acc + v);
+        acc += v;
+        const gap = k === topK ? 0 : 2;
+        const h = Math.max(0, y0 - y1 - gap);
+        if (h <= 0) return;
+        const ytop = y1 + gap;
+        if (k === topK) el('path', { d: topRounded(x(i), ytop, bw, h, 4), style: `fill:${s.color}` }, g);
+        else el('rect', { x: x(i), y: ytop, width: bw, height: h, style: `fill:${s.color}` }, g);
+      });
+      cols.push(g);
+    });
+    // Etiquetas directas: el máximo y el último año completo (una serie) o las series a la derecha (apiladas)
+    const lastFull = partialLast ? n - 2 : n - 1;
+    if (!stacked && labelExtremes) {
+      const vals = series[0].values.slice(0, lastFull + 1);
+      const iMax = vals.indexOf(Math.max(...vals));
+      for (const i of new Set([iMax, lastFull])) {
+        const t = el('text', { x: m.l + i * band + band / 2, y: y(totals[i]) - 6, 'text-anchor': i === lastFull && narrow ? 'end' : 'middle', class: 'dvalue' }, svg);
+        t.textContent = fmt(totals[i]);
+      }
+    }
+    if (direct) {
+      let acc = 0;
+      const marks = series.map((s) => {
+        const v = s.values[lastFull];
+        const mid = y(acc + v / 2);
+        acc += v;
+        return { s, v, mid };
+      }).reverse();  // de arriba abajo
+      let lastY = -Infinity;
+      const lx = m.l + pw + 12;
+      const x0 = partialLast ? m.l + (n - 1) * band + (band + bw) / 2 + 2 : x(lastFull) + bw + 2;
+      el('text', { x: lx, y: Math.max(12, marks[0].mid - 22), class: 'tick' }, svg).textContent = labels[lastFull];
+      for (const { s, v, mid } of marks) {
+        const yy = Math.max(mid + 4, lastY + 16);
+        lastY = yy;
+        el('line', { x1: x0, x2: lx - 3, y1: mid, y2: yy - 4, style: 'stroke:var(--axis)', 'stroke-width': 1 }, svg);
+        el('text', { x: lx, y: yy, class: 'dlabel' }, svg).textContent = `${s.name}: ${fmt(v)}`;
+      }
+    }
+    const tip = tooltip(host);
+    const showAt = (i) => {
+      cols.forEach((c, j) => c.setAttribute('opacity', j === i ? (partialLast && j === n - 1 ? 0.7 : 1) : (partialLast && j === n - 1 ? 0.3 : 0.55)));
+      const rows = series.slice().reverse().map((s) => ({ label: s.name, value: fmt(s.values[i]), color: s.color }));
+      if (tipTotal && stacked) rows.push({ label: 'Total', value: fmt(totals[i]) });
+      const extra = tipExtra ? tipExtra(i) : null;
+      const note = partialLast && i === n - 1 ? partialNote : extra;
+      const svgRect = svg.getBoundingClientRect(), scale = svgRect.width / W;
+      tip.show(labels[i], stacked ? rows : [{ label: series[0].name, value: fmt(series[0].values[i]) }], note, (m.l + i * band + band / 2) * scale, y(totals[i]) * scale);
+    };
+    const hide = () => { cols.forEach((c, j) => c.setAttribute('opacity', partialLast && j === n - 1 ? 0.45 : 1)); tip.hide(); };
+    labels.forEach((_, i) => {
+      const hit = el('rect', { x: m.l + i * band, y: m.t, width: band, height: ph, fill: 'transparent' }, svg);
+      hit.addEventListener('pointerenter', () => showAt(i));
+    });
+    svg.addEventListener('pointerleave', hide);
+    keyboard(svg, n, showAt, hide);
+  }
+
+  // Línea con cruceta
+  function line(host, { labels, values, name, ariaLabel, partialLast, partialNote, unit }) {
+    host.replaceChildren();
+    const W = host.clientWidth, H = 240;
+    const m = { t: 22, r: 16, b: 26, l: 36 };
+    const pw = W - m.l - m.r, ph = H - m.t - m.b;
+    const n = labels.length;
+    const ticks = niceTicks(Math.max(...values), 4);
+    const ymax = ticks[ticks.length - 1];
+    const x = (i) => m.l + (i / (n - 1)) * pw;
+    const y = (v) => m.t + ph - (v / ymax) * ph;
+    const svg = el('svg', { viewBox: `0 0 ${W} ${H}`, height: H, role: 'img', 'aria-label': ariaLabel }, host);
+    for (const t of ticks) {
+      el('line', { x1: m.l, x2: m.l + pw, y1: y(t), y2: y(t), style: `stroke:${t === 0 ? 'var(--axis)' : 'var(--grid)'}`, 'stroke-width': 1, 'shape-rendering': 'crispEdges' }, svg);
+      el('text', { x: m.l - 8, y: y(t) + 4, 'text-anchor': 'end', class: 'tick' }, svg).textContent = fmt(t);
+    }
+    const step = Math.max(5, Math.ceil((n * 44) / pw / 5) * 5);
+    labels.forEach((lab, i) => {
+      if (Number(lab) % step === 0 && (n - 1 - i) * (pw / (n - 1)) > 28) el('text', { x: x(i), y: H - 6, 'text-anchor': 'middle', class: 'tick' }, svg).textContent = lab;
+    });
+    el('text', { x: x(n - 1), y: H - 6, 'text-anchor': 'end', class: 'tick' }, svg).textContent = labels[n - 1];
+    const d = values.map((v, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join('');
+    el('path', { d, fill: 'none', style: 'stroke:var(--s1)', 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }, svg);
+    const lastFull = partialLast ? n - 2 : n - 1;
+    const vals = values.slice(0, lastFull + 1);
+    const iMax = vals.indexOf(Math.max(...vals));
+    const marks = Math.abs(x(iMax) - x(lastFull)) < 110 ? [lastFull] : [iMax, lastFull];
+    for (const i of marks) {
+      el('circle', { cx: x(i), cy: y(values[i]), r: 4, style: 'fill:var(--s1);stroke:var(--surface)', 'stroke-width': 2 }, svg);
+      el('text', { x: x(i), y: y(values[i]) - 10, 'text-anchor': i === lastFull ? 'end' : 'middle', class: 'dvalue' }, svg).textContent = `${fmt1(values[i])}${unit || ''} (${labels[i]})`;
+    }
+    const cross = el('line', { y1: m.t, y2: m.t + ph, style: 'stroke:var(--axis)', 'stroke-width': 1, opacity: 0 }, svg);
+    const dot = el('circle', { r: 4, style: 'fill:var(--s1);stroke:var(--surface)', 'stroke-width': 2, opacity: 0 }, svg);
+    const tip = tooltip(host);
+    const showAt = (i) => {
+      cross.setAttribute('x1', x(i)); cross.setAttribute('x2', x(i)); cross.setAttribute('opacity', 1);
+      dot.setAttribute('cx', x(i)); dot.setAttribute('cy', y(values[i])); dot.setAttribute('opacity', 1);
+      const scale = svg.getBoundingClientRect().width / W;
+      tip.show(labels[i], [{ label: name, value: fmt1(values[i]) + (unit || ''), color: 'var(--s1)' }], partialLast && i === n - 1 ? partialNote : null, x(i) * scale, y(values[i]) * scale);
+    };
+    const hide = () => { cross.setAttribute('opacity', 0); dot.setAttribute('opacity', 0); tip.hide(); };
+    const hit = el('rect', { x: m.l, y: m.t, width: pw, height: ph, fill: 'transparent' }, svg);
+    hit.addEventListener('pointermove', (e) => {
+      const r = svg.getBoundingClientRect();
+      const px = ((e.clientX - r.left) / r.width) * W;
+      showAt(Math.max(0, Math.min(n - 1, Math.round(((px - m.l) / pw) * (n - 1)))));
+    });
+    svg.addEventListener('pointerleave', hide);
+    keyboard(svg, n, showAt, hide);
+  }
+
+  // Barras horizontales ordenadas
+  function hbars(host, { items, name, ariaLabel }) {
+    host.replaceChildren();
+    const W = host.clientWidth, rowH = 26, bh = 14;
+    const m = { t: 4, r: 44, b: 4, l: 132 };
+    const H = m.t + m.b + items.length * rowH;
+    const pw = W - m.l - m.r;
+    const max = Math.max(...items.map((d) => d[1]));
+    const svg = el('svg', { viewBox: `0 0 ${W} ${H}`, height: H, role: 'img', 'aria-label': ariaLabel }, host);
+    el('line', { x1: m.l, x2: m.l, y1: m.t, y2: H - m.b, style: 'stroke:var(--axis)', 'stroke-width': 1, 'shape-rendering': 'crispEdges' }, svg);
+    const bars = [];
+    items.forEach(([lab, v], i) => {
+      const cy = m.t + i * rowH + rowH / 2;
+      el('text', { x: m.l - 8, y: cy + 4, 'text-anchor': 'end', class: 'dlabel' }, svg).textContent = lab;
+      const w = Math.max(1, (v / max) * pw);
+      bars.push(el('path', { d: rightRounded(m.l, cy - bh / 2, w, bh, 4), style: 'fill:var(--s1)' }, svg));
+      el('text', { x: m.l + w + 6, y: cy + 4, class: 'dvalue' }, svg).textContent = fmt(v);
+    });
+    const tip = tooltip(host);
+    const showAt = (i) => {
+      bars.forEach((b, j) => b.setAttribute('opacity', j === i ? 1 : 0.55));
+      const scale = svg.getBoundingClientRect().width / W;
+      tip.show(items[i][0], [{ label: name, value: fmt(items[i][1]), color: 'var(--s1)' }], null, (m.l + pw / 2) * scale, (m.t + i * rowH) * scale);
+    };
+    const hide = () => { bars.forEach((b) => b.setAttribute('opacity', 1)); tip.hide(); };
+    items.forEach((_, i) => {
+      const hit = el('rect', { x: 0, y: m.t + i * rowH, width: W, height: rowH, fill: 'transparent' }, svg);
+      hit.addEventListener('pointerenter', () => showAt(i));
+    });
+    svg.addEventListener('pointerleave', hide);
+    keyboard(svg, items.length, showAt, hide);
+  }
+
+  function pctChange(a, b) { return b ? ((a - b) / b) * 100 : null; }
+  function deltaText(a, b, prevYear) {
+    const p = pctChange(a, b);
+    if (p == null) return '';
+    if (Math.abs(p) < 0.05) return `Igual que ${prevYear.replace(/^al /, 'el ')} (${fmt(b)})`;
+    return `${p > 0 ? '+' : '−'}${fmt1(Math.abs(p))} % respecto ${prevYear} (${fmt(b)})`;
+  }
+
+  function render(D) {
+    const labels = D.anios.map(String);
+    const n = labels.length, cur = D.anio_en_curso, prev = cur - 1;
+    const a = D.ytd.actual, b = D.ytd.anterior;
+    const hasta = fechaCorta(a.hasta);
+    if (D.dias_con_error && D.dias_con_error.length) {
+      const li = document.getElementById('errores-api');
+      li.hidden = false;
+      li.textContent = `La API del BOE devuelve un error para ${D.dias_con_error.length === 1 ? 'un día' : D.dias_con_error.length + ' días'} (${D.dias_con_error.join(', ')}), que por eso no se cuenta${D.dias_con_error.length === 1 ? '' : 'n'}.`;
+    }
+    document.getElementById('updated').textContent = `Datos del BOE hasta el ${fecha(D.actualizado)}. Se actualiza cada día.`;
+    document.getElementById('hero-fig').textContent = fmt(a.paginas_s1);
+    document.getElementById('hero-label').textContent = `páginas de disposiciones generales publicadas en el BOE en ${cur}, hasta el ${hasta}`;
+    const hd = document.getElementById('hero-delta');
+    hd.replaceChildren();
+    const p = pctChange(a.paginas_s1, b.paginas_s1);
+    if (p != null) {
+      html('strong', null, `${p > 0 ? '+' : '−'}${fmt1(Math.abs(p))} %`, hd);
+      hd.appendChild(document.createTextNode(` respecto al mismo periodo de ${prev} (${fmt(b.paginas_s1)} páginas)`));
+    }
+    const kpis = document.getElementById('kpis');
+    kpis.replaceChildren();
+    [
+      ['Normas con rango de ley', a.rango_ley, b.rango_ley],
+      ['Normas generales nuevas', a.normas, b.normas],
+      ['Correcciones de errores', a.correcciones, b.correcciones],
+    ].forEach(([label, va, vb]) => {
+      const k = html('div', 'kpi', null, kpis);
+      html('div', 'label', `${label} en ${cur}`, k);
+      html('div', 'value', fmt(va), k);
+      html('div', 'cmp', deltaText(va, vb, `al mismo periodo de ${prev}`), k);
+    });
+
+    const partialNote = `${cur} en curso: datos hasta el ${hasta}`;
+    const draw = () => {
+      const i09 = Math.max(0, D.anios.indexOf(2009));
+      columns(document.getElementById('c-paginas'), {
+        labels: labels.slice(i09), partialLast: true, partialNote, labelExtremes: true,
+        series: [{ name: 'Páginas', color: 'var(--s1)', values: D.paginas_s1.slice(i09) }],
+        ariaLabel: `Columnas: páginas de disposiciones generales del BOE por año, de ${labels[i09]} a ${cur}. Usa las flechas para recorrer los años.`,
+        tipExtra: (i) => `${fmt(D.disposiciones_s1[i09 + i])} disposiciones generales`,
+      });
+      const R = D.rango_ley;
+      const decretos = R['Reales decretos-ley'].map((v, i) => v + R['Decretos-ley autonómicos'][i]);
+      columns(document.getElementById('c-ley'), {
+        labels, partialLast: true, partialNote, tipTotal: true,
+        series: [
+          { name: 'Leyes estatales', color: 'var(--s1)', values: R['Leyes estatales'] },
+          { name: 'Leyes autonómicas', color: 'var(--s2)', values: R['Leyes autonómicas'] },
+          { name: 'Decretos-ley', color: 'var(--s3)', values: decretos },
+        ],
+        tipExtra: (i) => `Decretos-ley: ${fmt(R['Reales decretos-ley'][i])} del Gobierno y ${fmt(R['Decretos-ley autonómicos'][i])} autonómicos`,
+        ariaLabel: `Columnas apiladas: normas con rango de ley por año y tipo, de ${labels[0]} a ${cur}. Usa las flechas para recorrer los años.`,
+      });
+      const rate = D.correcciones.map((c, i) => (D.disposiciones_s1[i] ? (c / D.disposiciones_s1[i]) * 100 : 0));
+      line(document.getElementById('c-corr'), {
+        labels, values: rate, name: 'Correcciones por cada 100', partialLast: true, partialNote,
+        ariaLabel: `Línea: correcciones de errores por cada 100 disposiciones generales, de ${labels[0]} a ${cur}.`,
+      });
+      const C = D.ccaa_ultimos_10;
+      document.getElementById('s-ccaa').textContent = `Publicados en el BOE, por comunidad autónoma, de ${C.desde} a ${C.hasta}.`;
+      hbars(document.getElementById('c-ccaa'), {
+        items: C.ranking, name: `Leyes y decretos-ley ${C.desde}–${C.hasta}`,
+        ariaLabel: `Barras: leyes y decretos-ley autonómicos por comunidad de ${C.desde} a ${C.hasta}.`,
+      });
+    };
+    const legend = document.getElementById('l-ley');
+    legend.replaceChildren();
+    [['Leyes estatales', 'var(--s1)'], ['Leyes autonómicas', 'var(--s2)'], ['Decretos-ley (Gobierno y comunidades)', 'var(--s3)']].forEach(([t, c]) => {
+      const li = html('li', null, null, legend);
+      const sw = html('span', 'sw', null, li); sw.style.background = c;
+      li.appendChild(document.createTextNode(t));
+    });
+
+    // Tabla
+    const t = document.getElementById('tabla');
+    t.replaceChildren();
+    const head = html('tr', null, null, html('thead', null, null, t));
+    ['Año', 'Páginas (disp. generales)', 'Disposiciones generales', 'Leyes estatales', 'Leyes autonómicas', 'Reales decretos-ley', 'Decretos-ley autonómicos', 'Correcciones'].forEach((h) => html('th', null, h, head));
+    const tb = html('tbody', null, null, t);
+    for (let i = n - 1; i >= 0; i--) {
+      const tr = html('tr', null, null, tb);
+      [labels[i] + (i === n - 1 ? ' (en curso)' : ''), fmt(D.paginas_s1[i]), fmt(D.disposiciones_s1[i]), fmt(D.rango_ley['Leyes estatales'][i]), fmt(D.rango_ley['Leyes autonómicas'][i]),
+       fmt(D.rango_ley['Reales decretos-ley'][i]), fmt(D.rango_ley['Decretos-ley autonómicos'][i]), fmt(D.correcciones[i])].forEach((v) => html('td', null, v, tr));
+    }
+
+    draw();
+    let lastW = document.body.clientWidth, timer;
+    window.addEventListener('resize', () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => { if (document.body.clientWidth !== lastW) { lastW = document.body.clientWidth; draw(); } }, 150);
+    });
+  }
+
+  fetch('data/observatorio.json')
+    .then((r) => r.json())
+    .then(render)
+    .catch(() => { document.getElementById('updated').textContent = 'No se han podido cargar los datos. Prueba a recargar la página.'; });
+})();
+</script>
+</body>
+</html>

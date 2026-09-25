@@ -1,0 +1,29 @@
+name: Actualizar datos del BOE
+
+on:
+  schedule:
+    - cron: '30 7 * * *'   # cada día a las 7:30 UTC, después de la publicación del BOE
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  actualizar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Descargar los últimos sumarios
+        run: python scripts/boe.py --update
+      - name: Recalcular la web
+        run: python scripts/build.py
+      - name: Guardar cambios
+        run: |
+          git config user.name "observatorio-bot"
+          git config user.email "observatorio-bot@users.noreply.github.com"
+          git add data docs/data
+          git diff --cached --quiet || git commit -m "Datos del BOE hasta $(date -u +%F)"
+          git push
